@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Powered Text Enhancer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+  <style>
+    .wrong-word {
+      font-weight: bold;
+      text-decoration: underline red;
+      position: relative;
+      cursor: help;
+    }
+    .wrong-word::after {
+      content: attr(data-meaning);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .wrong-word:hover::after {
+      display: block;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a8a 0%, #111827 100%);
+    }
+    .gradient-bg-light {
+      background: linear-gradient(135deg, #3b82f6 0%, #e0e7ff 100%);
+    }
+    .card-gradient {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+      backdrop-filter: blur(10px);
+    }
+    .card-gradient-light {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.9) 0%, rgba(224, 231, 255, 0.9) 100%);
+    }
+    .btn-gradient {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    }
+    .btn-gradient:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(-2px);
+    }
+    .transition-all {
+      transition: all 0.3s ease;
+    }
+    .floating {
+      animation: floating 3s ease-in-out infinite;
+    }
+    @keyframes floating {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+  </style>
+</head>
+<body class="gradient-bg text-white p-4 flex flex-col items-center justify-start min-h-screen transition-all">
+  <div class="max-w-4xl w-full card-gradient rounded-xl shadow-xl p-8 border border-gray-700/50">
+    <div class="flex justify-between items-center mb-8">
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-magic text-blue-400 text-2xl"></i>
+        <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+          AI Text Enhancer
+        </h1>
+      </div>
+      <button id="themeToggle" class="bg-gray-700 hover:bg-gray-600 text-sm px-4 py-2 rounded-full transition-all flex items-center space-x-2">
+        <i class="fas fa-moon"></i>
+        <span>Dark Mode</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div class="bg-gray-800/50 p-6 rounded-xl border border-gray-700/30">
+        <div class="flex items-center mb-4">
+          <div class="bg-blue-500/20 p-2 rounded-lg mr-3">
+            <i class="fas fa-lightbulb text-blue-400 text-xl"></i>
+          </div>
+          <h2 class="text-xl font-semibold">What This Tool Can Do</h2>
+        </div>
+        <ul class="space-y-3">
+          <li class="flex items-start">
+            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+            <span>Corrects grammatical errors and spelling mistakes</span>
+          </li>
+          <li class="flex items-start">
+            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+            <span>Provides meanings for highlighted incorrect words</span>
+          </li>
+          <li class="flex items-start">
+            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+            <span>Improves clarity and readability of text</span>
+          </li>
+          <li class="flex items-start">
+            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+            <span>Helps refine handwritten text digitally</span>
+          </li>
+          <li class="flex items-start">
+            <i class="fas fa-check-circle text-green-400 mt-1 mr-2"></i>
+            <span>Enhances text for professional use</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="bg-gray-800/50 p-6 rounded-xl border border-gray-700/30">
+        <div class="flex items-center mb-4">
+          <div class="bg-purple-500/20 p-2 rounded-lg mr-3">
+            <i class="fas fa-question-circle text-purple-400 text-xl"></i>
+          </div>
+          <h2 class="text-xl font-semibold">How to Use This Tool</h2>
+        </div>
+        <ol class="space-y-3">
+          <li class="flex items-start">
+            <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">1</span>
+            <span>Upload an image or enter your text below</span>
+          </li>
+          <li class="flex items-start">
+            <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">2</span>
+            <span>Click the "Enhance Text" button</span>
+          </li>
+          <li class="flex items-start">
+            <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">3</span>
+            <span>Review the corrected text with errors highlighted</span>
+          </li>
+          <li class="flex items-start">
+            <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">4</span>
+            <span>Hover over highlighted words to see their meanings</span>
+          </li>
+          <li class="flex items-start">
+            <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">5</span>
+            <span>Toggle between light/dark mode as needed</span>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="mb-8 text-center">
+      <div class="inline-block bg-gray-800/50 px-6 py-3 rounded-full border border-gray-700/30">
+        <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+        <span class="font-medium">Upload an image or paste your text below to get AI-powered enhancements</span>
+      </div>
+    </div>
+
+    <input type="file" id="imageUpload" accept="image/*" class="mb-4">
+    <canvas id="imageCanvas" class="hidden mb-4"></canvas>
+
+    <div class="relative mb-6">
+      <textarea id="inputText" placeholder="Enter or paste your text here..."
+                class="w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all h-48 text-lg"></textarea>
+      <div class="absolute bottom-4 right-4 flex space-x-2">
+        <button class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-all" title="Clear text" onclick="document.getElementById('inputText').value = ''">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-all" title="Paste from clipboard" onclick="pasteFromClipboard()">
+          <i class="fas fa-paste"></i>
+        </button>
+      </div>
+    </div>
+
+    <button onclick="correctText()"
+            class="w-full btn-gradient text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center space-x-2">
+      <i class="fas fa-magic"></i>
+      <span>Enhance Text</span>
+    </button>
+
+    <div id="result" class="mt-8 p-6 bg-gray-800/50 rounded-xl border border-gray-700/30 whitespace-pre-wrap transition-all hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold flex items-center">
+          <i class="fas fa-check-circle text-green-400 mr-2"></i>
+          Enhanced Text
+        </h3>
+        <button class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-all" title="Copy to clipboard" onclick="copyToClipboard('result')">
+          <i class="fas fa-copy"></i>
+        </button>
+      </div>
+      <div id="resultContent" class="text-lg"></div>
+      <div id="correctedSentence" class="mt-4 text-green-400 font-semibold"></div>
+    </div>
+
+    <div class="mt-8 pt-6 border-t border-gray-700/30 flex flex-col md:flex-row justify-between items-center">
+      <div class="flex items-center space-x-2 mb-4 md:mb-0">
+        <img src="https://img.icons8.com/color/48/000000/artificial-intelligence.png" alt="AI Icon" class="w-8 h-8">
+        <span class="text-sm text-gray-400">Powered by advanced AI technology</span>
+      </div>
+      <div class="flex space-x-4">
+        <a href="#" class="text-gray-400 hover:text-blue-400 transition-all">
+          <i class="fab fa-github text-xl"></i>
+        </a>
+        <a href="#" class="text-gray-400 hover:text-blue-400 transition-all">
+          <i class="fab fa-twitter text-xl"></i>
+        </a>
+        <a href="#" class="text-gray-400 hover:text-blue-400 transition-all">
+          <i class="fab fa-discord text-xl"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const themeToggle = document.getElementById('themeToggle');
+    let isDarkMode = true;
+    const imageUpload = document.getElementById('imageUpload');
+    const imageCanvas = document.getElementById('imageCanvas');
+    const ctx = imageCanvas.getContext('2d');
+    let extractedText = "";
+
+    themeToggle.addEventListener('click', () => {
+      isDarkMode = !isDarkMode;
+      updateTheme();
+    });
+
+    function updateTheme() {
+      if (isDarkMode) {
+        document.body.classList.remove('gradient-bg-light', 'text-gray-900');
+        document.body.classList.add('gradient-bg', 'text-white');
+        document.querySelectorAll('.card-gradient-light').forEach(el => {
+          el.classList.remove('card-gradient-light', 'text-gray-900');
+          el.classList.add('card-gradient', 'text-white');
+        });
+        document.querySelectorAll('.bg-gray-800/50, textarea, #result').forEach(el => {
+          el.classList.add('bg-gray-800/50', 'border-gray-700/30');
+          el.classList.remove('bg-white/80', 'border-gray-200/50');
+        });
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i><span>Dark Mode</span>';
+      } else {
+        document.body.classList.remove('gradient-bg', 'text-white');
+        document.body.classList.add('gradient-bg-light', 'text-gray-900');
+        document.querySelectorAll('.card-gradient').forEach(el => {
+          el.classList.remove('card-gradient', 'text-white');
+          el.classList.add('card-gradient-light', 'text-gray-900');
+        });
+        document.querySelectorAll('.bg-gray-800/50, textarea, #result').forEach(el => {
+          el.classList.remove('bg-gray-800/50', 'border-gray-700/30');
+          el.classList.add('bg-white/80', 'border-gray-200/50');
+        });
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i><span>Light Mode</span>';
+      }
+    }
+
+    imageUpload.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const img = new Image();
+          img.onload = async () => {
+            imageCanvas.width = img.width;
+            imageCanvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            imageCanvas.classList.remove('hidden');
+
+            try {
+              const { data: { text } } = await Tesseract.recognize(img);
+              extractedText = text;
+              document.getElementById('inputText').value = extractedText;
+            } catch (error) {
+              alert('OCR Failed: ' + error.message);
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    async function correctText() {
+      const inputText = document.getElementById('inputText').value;
+      const resultDiv = document.getElementById('result');
+      const resultContent = document.getElementById('resultContent');
+      const correctedSentenceDiv = document.getElementById('correctedSentence');
+      
+      if (!inputText.trim()) {
+        resultContent.innerHTML = '<p class="text-red-400">Please enter some text to enhance.</p>';
+        resultDiv.classList.remove('hidden');
+        return;
+      }
+
+      resultContent.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-8">
+          <div class="relative mb-4">
+            <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
+              <i class="fas fa-cog fa-spin text-blue-400 text-2xl"></i>
+            </div>
+            <div class="absolute -inset-2 border-4 border-blue-500/30 rounded-full animate-ping"></div>
+          </div>
+          <p class="text-gray-400">Enhancing your text with AI...</p>
+        </div>
+      `;
+      resultDiv.classList.remove('hidden');
+
+      const apiKey = 'AIzaSyC0cUJVxN2NC303B-LzZo8jXM7FwQe9-bQ'; // Replace with your actual API key.
+      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Correct the following text, underline the wrong words with red, make them bold and provide the meaning of the wrong word in the corner. Provide a corrected sentence at the end. ${inputText}` }] }],
+          }),
+        });
+
+        const data = await response.json();
+        let correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '<p class="text-red-400">No enhancement available.</p>';
+
+        const sentenceRegex = /Corrected Sentence:\s*(.+)/s;
+        const sentenceMatch = correctedText.match(sentenceRegex);
+
+        if (sentenceMatch && sentenceMatch[1]) {
+          correctedSentenceDiv.innerHTML = `Corrected Sentence: ${sentenceMatch[1].trim()}`;
+          correctedText = correctedText.replace(sentenceRegex, '').trim(); 
+        } else {
+          correctedSentenceDiv.innerHTML = '';
+        }
+
+        correctedText = correctedText.replace(/(\w+)\s*\[meaning:\s*([^\]]+)\]/g, '<span class="wrong-word" data-meaning="$2">$1</span>');
+
+        resultContent.innerHTML = correctedText;
+      } catch (error) {
+        resultContent.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+      }
+      
+    }
+
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      const range = document.createRange();
+      range.selectNode(element);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+      
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2';
+      notification.innerHTML = '<i class="fas fa-check-circle"></i><span>Copied to clipboard!</span>';
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 2000);
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('inputText').value = text;
+      } catch (err) {
+        alert('Failed to paste from clipboard. Please paste manually.');
+      }
+    }
+
+    updateTheme();
+  </script>
+</body>
+</html>
