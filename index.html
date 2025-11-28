@@ -13,6 +13,9 @@
       text-decoration: underline red;
       position: relative;
       cursor: help;
+      background-color: rgba(239, 68, 68, 0.1);
+      padding: 2px 4px;
+      border-radius: 3px;
     }
     .wrong-word::after {
       content: attr(data-meaning);
@@ -157,6 +160,20 @@
       </div>
     </div>
 
+    <!-- API Key Input for Security -->
+    <div class="mb-4 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
+      <label class="block text-sm font-medium mb-2 text-yellow-300">
+        <i class="fas fa-key mr-2"></i>Enter Your Gemini API Key
+      </label>
+      <input type="password" id="apiKeyInput" 
+             placeholder="Enter your Gemini API key here..."
+             class="w-full p-3 rounded-lg border border-yellow-500/50 bg-gray-800 text-white focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
+      <p class="text-xs text-yellow-200 mt-2">
+        🔒 Your API key is stored locally and never sent to our servers. 
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="underline">Get your free API key</a>
+      </p>
+    </div>
+
     <input type="file" id="imageUpload" accept="image/*" class="mb-4">
     <canvas id="imageCanvas" class="hidden mb-4"></canvas>
 
@@ -185,7 +202,7 @@
           <i class="fas fa-check-circle text-green-400 mr-2"></i>
           Enhanced Text
         </h3>
-        <button class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-all" title="Copy to clipboard" onclick="copyToClipboard('result')">
+        <button class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-all" title="Copy to clipboard" onclick="copyToClipboard('resultContent')">
           <i class="fas fa-copy"></i>
         </button>
       </div>
@@ -281,12 +298,19 @@
 
     async function correctText() {
       const inputText = document.getElementById('inputText').value;
+      const apiKey = document.getElementById('apiKeyInput').value;
       const resultDiv = document.getElementById('result');
       const resultContent = document.getElementById('resultContent');
       const correctedSentenceDiv = document.getElementById('correctedSentence');
       
       if (!inputText.trim()) {
         resultContent.innerHTML = '<p class="text-red-400">Please enter some text to enhance.</p>';
+        resultDiv.classList.remove('hidden');
+        return;
+      }
+
+      if (!apiKey.trim()) {
+        resultContent.innerHTML = '<p class="text-red-400">Please enter your Gemini API key to use this feature.</p>';
         resultDiv.classList.remove('hidden');
         return;
       }
@@ -304,55 +328,85 @@
       `;
       resultDiv.classList.remove('hidden');
 
-      const apiKey = 'AIzaSyC0cUJVxN2NC303B-LzZo8jXM7FwQe9-bQ'; // Replace with your actual API key.
-      
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      const prompt = `Please analyze and correct the following text. Follow these instructions exactly:
+
+1. Identify and correct any grammatical errors, spelling mistakes, or awkward phrasing
+2. For each incorrect word, provide the correction and a brief meaning/explanation
+3. Format your response as follows:
+   - Show the corrected text with incorrect words highlighted like this: [word|meaning:explanation]
+   - At the end, provide the fully corrected sentence on a new line starting with "Corrected Sentence:"
+
+Text to correct: "${inputText}"`;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
       try {
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `Correct the following text, underline the wrong words with red, make them bold and provide the meaning of the wrong word in the corner. Provide a corrected sentence at the end. ${inputText}` }] }],
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 1024,
+            }
           }),
         });
 
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+        }
+
         const data = await response.json();
-        let correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '<p class="text-red-400">No enhancement available.</p>';
+        
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+          throw new Error('Invalid response format from API');
+        }
 
-        const sentenceRegex = /Corrected Sentence:\s*(.+)/s;
+        let correctedText = data.candidates[0].content.parts[0].text;
+
+        // Extract corrected sentence
+        const sentenceRegex = /Corrected Sentence:\s*(.+)/i;
         const sentenceMatch = correctedText.match(sentenceRegex);
-
+        
         if (sentenceMatch && sentenceMatch[1]) {
-          correctedSentenceDiv.innerHTML = `Corrected Sentence: ${sentenceMatch[1].trim()}`;
-          correctedText = correctedText.replace(sentenceRegex, '').trim(); 
+          correctedSentenceDiv.innerHTML = `<strong>Corrected Sentence:</strong> ${sentenceMatch[1].trim()}`;
+          correctedText = correctedText.replace(sentenceRegex, '').trim();
         } else {
           correctedSentenceDiv.innerHTML = '';
         }
 
-        correctedText = correctedText.replace(/(\w+)\s*\[meaning:\s*([^\]]+)\]/g, '<span class="wrong-word" data-meaning="$2">$1</span>');
+        // Process the text to create interactive elements
+        correctedText = correctedText.replace(/\[([^|]+)\|meaning:([^\]]+)\]/g, 
+          '<span class="wrong-word" data-meaning="$2">$1</span>');
 
-        resultContent.innerHTML = correctedText;
+        // Clean up any remaining markdown-like syntax
+        correctedText = correctedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        correctedText = correctedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+        resultContent.innerHTML = correctedText || '<p class="text-red-400">No enhancement available. Please try different text.</p>';
+        
       } catch (error) {
-        resultContent.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+        console.error('API Error:', error);
+        resultContent.innerHTML = `<p class="text-red-400">Error: ${error.message}. Please check your API key and try again.</p>`;
       }
-      
     }
 
     function copyToClipboard(elementId) {
       const element = document.getElementById(elementId);
-      const range = document.createRange();
-      range.selectNode(element);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
-      document.execCommand('copy');
-      window.getSelection().removeAllRanges();
+      const textToCopy = element.innerText || element.textContent;
       
-      const notification = document.createElement('div');
-      notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2';
-      notification.innerHTML = '<i class="fas fa-check-circle"></i><span>Copied to clipboard!</span>';
-      document.body.appendChild(notification);
-      setTimeout(() => notification.remove(), 2000);
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const notification = document.createElement('div');
+        notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2';
+        notification.innerHTML = '<i class="fas fa-check-circle"></i><span>Copied to clipboard!</span>';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 2000);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+      });
     }
 
     async function pasteFromClipboard() {
